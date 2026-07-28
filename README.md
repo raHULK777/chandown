@@ -1,5 +1,9 @@
 # ClipDown
 
+<p align="center">
+  <img src="public/ClipDownLogo.png" alt="ClipDown Logo" width="200"/>
+</p>
+
 Local-first YouTube downloader for clippers, researchers, and archivists.
 
 Built with [Tauri v2](https://v2.tauri.app) (Rust) + React 19 — no Python runtime needed.
