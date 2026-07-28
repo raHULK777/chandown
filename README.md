@@ -65,6 +65,10 @@ Place it anywhere and run. The app stores its data (downloaded tools, settings) 
 
 ## How to Use
 
+<p align="center">
+  <img src="ClipDown.png" alt="ClipDown App Screenshot" width="700"/>
+</p>
+
 ### 1. Fetch a Channel
 
 1. Copy a YouTube channel URL — supports these formats:
