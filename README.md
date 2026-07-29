@@ -4,10 +4,12 @@
   <img src="public/ClipDownLogo.png" alt="ClipDown Logo" width="200"/>
 </p>
 
-<p align="center">
+<p align="left">
   <a href="https://sourceforge.net/projects/clipdown/files/latest/download">
     <img src="https://a.fsdn.com/con/app/sf-download-button" alt="Download clipdown">
   </a>
+</p>
+<p align="left">
   <a href="https://app.codacy.com/gh/raHULK777/clipdown/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade">
     <img src="https://app.codacy.com/project/badge/Grade/42a2573a16994eb7a75490905e84f7c4" alt="Codacy Badge">
   </a>
