@@ -4,6 +4,15 @@
   <img src="public/ClipDownLogo.png" alt="ClipDown Logo" width="200"/>
 </p>
 
+<p align="center">
+  <a href="https://sourceforge.net/projects/clipdown/files/latest/download">
+    <img src="https://a.fsdn.com/con/app/sf-download-button" alt="Download clipdown">
+  </a>
+  <a href="https://app.codacy.com/gh/raHULK777/clipdown/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade">
+    <img src="https://app.codacy.com/project/badge/Grade/42a2573a16994eb7a75490905e84f7c4" alt="Codacy Badge">
+  </a>
+</p>
+
 Local-first YouTube downloader for clippers, researchers, and archivists.
 
 Built with [Tauri v2](https://v2.tauri.app) (Rust) + React 19 — no Python runtime needed.
