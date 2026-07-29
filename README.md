@@ -1,5 +1,7 @@
 # ClipDown
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/0fa5584fb41b47509559cbc6c62d145a)](https://app.codacy.com/gh/raHULK777/clipdown?utm_source=github.com&utm_medium=referral&utm_content=raHULK777/clipdown&utm_campaign=Badge_Grade)
+
 <p align="center">
   <img src="public/ClipDownLogo.png" alt="ClipDown Logo" width="200"/>
 </p>
