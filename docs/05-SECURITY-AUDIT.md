@@ -1,4 +1,4 @@
-# Security Audit: ClipDown
+# Security Audit: ChanDown
 
 **Date:** 2026-07-28  
 **App Version:** 0.1.0  

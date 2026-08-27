@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "ClipDown",
+  "productName": "ChanDown",
   "version": "0.1.0",
-  "identifier": "com.clipdown.app",
+  "identifier": "com.chandown.app",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "ClipDown",
+        "title": "ChanDown",
         "width": 1280,
         "height": 800,
         "minWidth": 900,

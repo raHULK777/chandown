@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useDownloadStore } from "@/stores/download-store"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,11 +8,51 @@ import { open } from "@tauri-apps/plugin-shell"
 import { useTauriCommand } from "@/hooks/use-tauri-command"
 import { useTauriEvent } from "@/hooks/use-tauri-event"
 import type { QueueState, DownloadItem } from "@/types"
-import { Pause, Play, X, Trash2, FolderOpen, ExternalLink, Film } from "lucide-react"
+import { formatBytes } from "@/utils"
+import { Pause, Play, X, Trash2, FolderOpen, ExternalLink, Film, Music, Video, RefreshCw, AlertTriangle } from "lucide-react"
+
+function formatLabel(item: DownloadItem): string {
+  if (item.audio_only) {
+    const af = (item.audio_format ?? "mp3").toUpperCase()
+    const aq = item.audio_quality ?? ""
+    return aq ? `${af} ${aq}kbps` : af
+  }
+  const fmt = item.format_id ?? ""
+  const vf = item.video_format ?? ""
+  const res = fmt.replace(/p$/, "")
+  return vf ? `${res}p ${vf.toUpperCase()}` : `${res}p`
+}
 
 function QueuePage() {
   const store = useDownloadStore()
   const { invoke } = useTauriCommand()
+  const [updateInfo, setUpdateInfo] = useState<{ available: boolean; message: string } | null>(null)
+  const [checkingUpdate, setCheckingUpdate] = useState(false)
+  const [updatingYtdlp, setUpdatingYtdlp] = useState(false)
+
+  const checkForUpdate = useCallback(async () => {
+    try {
+      setCheckingUpdate(true)
+      const result = await invoke<{ update_available: boolean; message: string }>("check_for_ytdlp_update")
+      setUpdateInfo({ available: result.update_available, message: result.message })
+    } catch {
+      setUpdateInfo(null)
+    } finally {
+      setCheckingUpdate(false)
+    }
+  }, [invoke])
+
+  const handleUpdateYtdlp = async () => {
+    try {
+      setUpdatingYtdlp(true)
+      await invoke("update_ytdlp")
+      setUpdateInfo(null)
+    } catch {
+      setUpdateInfo(null)
+    } finally {
+      setUpdatingYtdlp(false)
+    }
+  }
 
   const fetchQueue = async () => {
     try {
@@ -39,6 +79,9 @@ function QueuePage() {
   useTauriEvent("download-status", (payload: unknown) => {
     const data = payload as { id: string; status: DownloadItem["status"]; error?: string }
     store.updateItem(data.id, { status: data.status, error: data.error ?? null })
+    if (data.status === "Failed") {
+      checkForUpdate()
+    }
   })
 
   const handleCancel = (id: string) => invoke("cancel_download", { id }).catch(() => {})
@@ -75,6 +118,38 @@ function QueuePage() {
           Clear Completed
         </Button>
       </div>
+
+      {updateInfo?.available && (
+        <Card className="border-amber-500/50 bg-amber-500/5">
+          <CardContent className="py-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-amber-600">yt-dlp update available</p>
+                <p className="text-xs text-muted-foreground mt-1">{updateInfo.message}</p>
+                <p className="text-xs text-muted-foreground mt-1">Updating may fix download failures.</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleUpdateYtdlp}
+                disabled={updatingYtdlp}
+                className="shrink-0"
+              >
+                <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${updatingYtdlp ? "animate-spin" : ""}`} />
+                {updatingYtdlp ? "Updating..." : "Update yt-dlp"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!updateInfo && checkingUpdate && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <RefreshCw className="h-3 w-3 animate-spin" />
+          Checking for yt-dlp updates...
+        </div>
+      )}
 
       {activeItems.length === 0 && completedItems.length === 0 && (
         <Card>
@@ -154,8 +229,13 @@ function DownloadRow({ item, onCancel, onPause, onResume, onPlay, onOpenFolder }
               <Badge variant="outline" className={statusColor[item.status]}>
                 {item.status}
               </Badge>
+              <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-xs">
+                {item.audio_only ? <Music className="inline h-3 w-3 mr-0.5" /> : <Video className="inline h-3 w-3 mr-0.5" />}
+                {formatLabel(item)}
+              </Badge>
               {item.speed && <span className="text-xs text-muted-foreground tabular-nums">{item.speed}</span>}
               {item.eta && <span className="text-xs text-muted-foreground tabular-nums">ETA: {item.eta}</span>}
+              {item.filesize && <span className="text-xs text-muted-foreground tabular-nums">{formatBytes(item.filesize)}</span>}
               {item.error && <span className="text-xs text-destructive truncate max-w-[300px]">{item.error}</span>}
             </div>
             {item.status === "Downloading" && (

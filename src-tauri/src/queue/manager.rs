@@ -14,18 +14,27 @@ impl QueueManager {
     }
 
     pub fn add_item(&mut self, request: DownloadRequest) -> Result<DownloadItem, String> {
+        let format_id = if request.audio_only {
+            "bestaudio".to_string()
+        } else {
+            request.format_id.clone()
+        };
+
         let item = DownloadItem {
             id: uuid_v4(),
             url: request.url,
             title: request.title,
-            format_id: request.format_id,
+            format_id,
             output_path: request.output_path,
             video_format: request.video_format,
+            audio_only: request.audio_only,
+            audio_format: request.audio_format,
+            audio_quality: request.audio_quality,
             status: DownloadStatus::Queued,
             progress: 0.0,
             speed: None,
             eta: None,
-            filesize: None,
+            filesize: request.filesize,
             downloaded_bytes: None,
             error: None,
             queued_at: chrono_now(),
@@ -167,6 +176,7 @@ mod tests {
             audio_format: None,
             audio_quality: None,
             video_format: None,
+            filesize: None,
         }
     }
 

@@ -88,3 +88,29 @@ pub async fn ensure_ffmpeg(app: AppHandle) -> Result<String, String> {
     let path = ProcessManager::download_ffmpeg(&bin)?;
     Ok(path.to_string_lossy().to_string())
 }
+
+#[tauri::command]
+pub async fn check_for_ytdlp_update(app: AppHandle) -> Result<serde_json::Value, String> {
+    let ytdlp = resolve_ytdlp(&app).ok_or_else(|| "yt-dlp not found".to_string())?;
+
+    let version_output = ProcessManager::run_simple(
+        &ytdlp.to_string_lossy(),
+        &["--version"],
+    ).map_err(|e| format!("Failed to get yt-dlp version: {}", e))?;
+
+    let current_version = version_output.trim().to_string();
+
+    let update_output = ProcessManager::run_simple(
+        &ytdlp.to_string_lossy(),
+        &["-U"],
+    ).map_err(|e| format!("Failed to check for updates: {}", e))?;
+
+    let update_lower = update_output.to_lowercase();
+    let update_available = !update_lower.contains("up to date") && !update_lower.contains("already latest");
+
+    Ok(serde_json::json!({
+        "current_version": current_version,
+        "update_available": update_available,
+        "message": update_output.trim(),
+    }))
+}

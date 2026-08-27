@@ -348,7 +348,7 @@ Tools:
   FFmpeg: v7.0 ✅
 
 About:
-  App: ClipDown v0.1.0
+  App: ChanDown v0.1.0
   GitHub: [link]
   License: MIT
 ```
@@ -484,7 +484,7 @@ Every interactive component must define these states:
 ### 11.2 Welcome Screen (first-launch only, after tools check)
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                    Welcome to ClipDown                    │
+│                    Welcome to ChanDown                    │
 │                                                           │
 │  1. Paste a YouTube channel URL                          │
 │  2. Browse videos, shorts, streams, playlists            │

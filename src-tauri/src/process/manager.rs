@@ -27,7 +27,11 @@ impl ProcessManager {
     pub fn find_tool_path(name: &str) -> Option<PathBuf> {
         if cfg!(target_os = "windows") {
             let name_exe = format!("{}.exe", name);
-            if let Ok(output) = Command::new("where").arg(&name_exe).output() {
+            if let Ok(output) = Command::new("where")
+                .creation_flags(CREATE_NO_WINDOW)
+                .arg(&name_exe)
+                .output()
+            {
                 if output.status.success() {
                     let path = String::from_utf8_lossy(&output.stdout)
                         .lines()

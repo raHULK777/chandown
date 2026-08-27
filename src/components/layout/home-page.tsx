@@ -4,7 +4,6 @@ import { useTauriCommand } from "@/hooks/use-tauri-command"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
 import { DownloadDialog } from "@/components/download/download-dialog"
 import type { ChannelInfo, VideoItem, PlaylistItem } from "@/types"
 import { Search, X } from "lucide-react"
@@ -33,6 +32,29 @@ function friendlyMessage(msg: string): { title: string; body: string } | null {
 function SettingsLink() {
   const goToSettings = () => window.dispatchEvent(new CustomEvent("navigate", { detail: "settings" }))
   return <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={goToSettings}>Settings →</Button>
+}
+
+function extractChannelHandle(rawUrl: string): string {
+  const trimmed = rawUrl.trim()
+  const match = trimmed.match(/@([A-Za-z0-9_\-\.]+)/)
+  if (match && match[1]) return match[1]
+  const channelSlug = trimmed.match(/\/channel\/([A-Za-z0-9_\-]+)/)
+  if (channelSlug && channelSlug[1]) return channelSlug[1]
+  return ""
+}
+
+function HolographicLoader({ handle }: { handle: string }) {
+  const display = handle || "Loading..."
+  const fallback = !handle
+  return (
+    <div className="holo-container">
+      <div className="holo-glow" />
+      <div className="holo-orbit" />
+      <div className="holo-orbit opposite" />
+      <div className="holo-text">{display}</div>
+      <div className="holo-subtitle">{fallback ? "Fetching channel" : "Fetching channel videos"}</div>
+    </div>
+  )
 }
 
 function HomePage() {
@@ -154,24 +176,7 @@ function HomePage() {
       )}
 
       {store.loading && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-4">
-            <Skeleton className="h-16 w-16 rounded-full" />
-            <div className="space-y-2">
-              <Skeleton className="h-6 w-48" />
-              <Skeleton className="h-4 w-32" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="space-y-2">
-                <Skeleton className="aspect-video w-full rounded-lg" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-3 w-2/3" />
-              </div>
-            ))}
-          </div>
-        </div>
+        <HolographicLoader handle={extractChannelHandle(url)} />
       )}
 
       {store.channel && !store.loading && (
@@ -231,7 +236,7 @@ function HomePage() {
           </div>
 
           {store.activeTab === "playlists" ? (
-            <PlaylistGrid playlists={store.playlists} />
+            <PlaylistBrowser playlists={store.playlists} />
           ) : (
             <VideoBrowser items={getCurrentItems()} />
           )}
@@ -241,8 +246,8 @@ function HomePage() {
       {!store.channel && !store.loading && !store.error && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
-            <img src="/ClipDownLogo.png" alt="ClipDown" className="h-12 w-12 mb-4" />
-            <h3 className="text-lg font-medium">ClipDown</h3>
+            <img src="/ChanDownLogo.png" alt="ChanDown" className="h-12 w-12 mb-4" />
+            <h3 className="text-lg font-medium">ChanDown</h3>
             <p className="text-sm text-muted-foreground mt-1">Paste a YouTube channel URL above to get started</p>
           </CardContent>
         </Card>
@@ -432,6 +437,95 @@ function VideoBrowser({ items }: { items: VideoItem[] }) {
         )}
       </div>
       <VideoGrid items={pageItems} />
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-1">
+          <button
+            onClick={() => go(safePage - 1)}
+            disabled={safePage <= 1}
+            className="rounded px-2 py-1 text-sm text-muted-foreground hover:bg-accent disabled:opacity-30"
+          >
+            Prev
+          </button>
+          {pages.map((p, i) =>
+            p === "..." ? (
+              <span key={`ellipsis-${i}`} className="px-1 text-sm text-muted-foreground">...</span>
+            ) : (
+              <button
+                key={p}
+                onClick={() => go(p as number)}
+                className={`min-w-[28px] rounded px-2 py-1 text-sm ${
+                  p === safePage ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"
+                }`}
+              >
+                {p}
+              </button>
+            )
+          )}
+          <button
+            onClick={() => go(safePage + 1)}
+            disabled={safePage >= totalPages}
+            className="rounded px-2 py-1 text-sm text-muted-foreground hover:bg-accent disabled:opacity-30"
+          >
+            Next
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PlaylistBrowser({ playlists }: { playlists: PlaylistItem[] }) {
+  const [query, setQuery] = useState("")
+  const [page, setPage] = useState(1)
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return playlists
+    const q = query.toLowerCase()
+    return playlists.filter((p) => p.title.toLowerCase().includes(q))
+  }, [playlists, query])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const pageItems = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+
+  const go = (p: number) => setPage(Math.max(1, Math.min(p, totalPages)))
+
+  const pages = useMemo(() => {
+    const p: (number | "...")[] = []
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) p.push(i)
+    } else {
+      p.push(1)
+      if (safePage > 3) p.push("...")
+      const start = Math.max(2, safePage - 1)
+      const end = Math.min(totalPages - 1, safePage + 1)
+      for (let i = start; i <= end; i++) p.push(i)
+      if (safePage < totalPages - 2) p.push("...")
+      p.push(totalPages)
+    }
+    return p
+  }, [totalPages, safePage])
+
+  return (
+    <div className="space-y-4">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search playlists by title..."
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setPage(1) }}
+          className="pl-8 pr-8"
+        />
+        {query && (
+          <button
+            onClick={() => { setQuery(""); setPage(1) }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+      <PlaylistGrid playlists={pageItems} />
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-1">
           <button

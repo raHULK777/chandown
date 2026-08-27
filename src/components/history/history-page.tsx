@@ -1,32 +1,50 @@
-import { useEffect } from "react"
-import { useDownloadStore } from "@/stores/download-store"
+import { useEffect, useState, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { open } from "@tauri-apps/plugin-shell"
 import { useTauriCommand } from "@/hooks/use-tauri-command"
-import type { QueueState, DownloadItem } from "@/types"
-import { ExternalLink, FolderOpen, Clock } from "lucide-react"
+import type { DownloadItem } from "@/types"
+import { formatBytes } from "@/utils"
+import { ExternalLink, FolderOpen, Clock, Music, Video, Trash2 } from "lucide-react"
+
+function formatLabel(item: DownloadItem): string {
+  if (item.audio_only) {
+    const af = (item.audio_format ?? "mp3").toUpperCase()
+    const aq = item.audio_quality ?? ""
+    return aq ? `${af} ${aq}kbps` : af
+  }
+  const fmt = item.format_id ?? ""
+  const vf = item.video_format ?? ""
+  const res = fmt.replace(/p$/, "")
+  return vf ? `${res}p ${vf.toUpperCase()}` : `${res}p`
+}
 
 function HistoryPage() {
-  const store = useDownloadStore()
   const { invoke } = useTauriCommand()
+  const [items, setItems] = useState<DownloadItem[]>([])
+
+  const fetchHistory = useCallback(async () => {
+    try {
+      const history = await invoke<DownloadItem[]>("get_history")
+      setItems(history)
+    } catch { /* ignore */ }
+  }, [invoke])
 
   useEffect(() => {
-    const fetchCompleted = async () => {
-      try {
-        const state = await invoke<QueueState>("get_queue")
-        store.setQueue(state)
-      } catch { /* ignore */ }
-    }
-    fetchCompleted()
-    const interval = setInterval(fetchCompleted, 3000)
+    fetchHistory()
+    const interval = setInterval(fetchHistory, 3000)
     return () => clearInterval(interval)
-  }, [])
+  }, [fetchHistory])
 
-  const completedItems = store.queue.filter(
-    (i) => i.status === "Completed" || i.status === "Failed" || i.status === "Cancelled"
-  )
+  const handleClear = async () => {
+    try {
+      await invoke("clear_history")
+      setItems([])
+    } catch { /* ignore */ }
+  }
+
+  const completedItems = items
 
   const openFile = (filePath: string | null) => {
     if (!filePath) return
@@ -51,6 +69,12 @@ function HistoryPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Download History</h1>
+        {completedItems.length > 0 && (
+          <Button variant="outline" size="sm" onClick={handleClear}>
+            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+            Clear History
+          </Button>
+        )}
       </div>
 
       {completedItems.length === 0 && (
@@ -74,6 +98,10 @@ function HistoryPage() {
                     <Badge variant="outline" className={statusColor[item.status]}>
                       {item.status}
                     </Badge>
+                    <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-xs">
+                      {item.audio_only ? <Music className="inline h-3 w-3 mr-0.5" /> : <Video className="inline h-3 w-3 mr-0.5" />}
+                      {formatLabel(item)}
+                    </Badge>
                     <span>{new Date(item.queued_at).toLocaleString()}</span>
                     {item.filesize && <span>{formatBytes(item.filesize)}</span>}
                   </div>
@@ -96,13 +124,6 @@ function HistoryPage() {
       </div>
     </div>
   )
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes >= 1073741824) return `${(bytes / 1073741824).toFixed(1)} GB`
-  if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(1)} MB`
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${bytes} B`
 }
 
 export { HistoryPage }

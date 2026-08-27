@@ -45,8 +45,8 @@ function Header() {
         onMouseDown={startDrag}
         className="flex flex-1 items-center gap-2 px-4 h-full cursor-default"
       >
-        <img src="/ClipDownLogo.png" alt="ClipDown" className="h-5 w-5" />
-        <span className="text-xs font-semibold text-muted-foreground">ClipDown</span>
+        <img src="/ChanDownLogo.png" alt="ChanDown" className="h-5 w-5" />
+        <span className="text-xs font-semibold text-muted-foreground">ChanDown</span>
       </div>
 
       <div className="flex items-center h-full">

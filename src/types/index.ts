@@ -69,6 +69,10 @@ export interface DownloadItem {
   title: string
   format_id: string
   output_path: string
+  video_format: string | null
+  audio_only: boolean
+  audio_format: string | null
+  audio_quality: string | null
   status: DownloadStatus
   progress: number
   speed: string | null
@@ -90,6 +94,7 @@ export interface DownloadRequest {
   audio_format: string | null
   audio_quality: string | null
   video_format: string | null
+  filesize: number | null
 }
 
 export interface QueueState {

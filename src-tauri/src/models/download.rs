@@ -18,6 +18,9 @@ pub struct DownloadItem {
     pub format_id: String,
     pub output_path: String,
     pub video_format: Option<String>,
+    pub audio_only: bool,
+    pub audio_format: Option<String>,
+    pub audio_quality: Option<String>,
     pub status: DownloadStatus,
     pub progress: f64,
     pub speed: Option<String>,
@@ -40,6 +43,7 @@ pub struct DownloadRequest {
     pub audio_format: Option<String>,
     pub audio_quality: Option<String>,
     pub video_format: Option<String>,
+    pub filesize: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

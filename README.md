@@ -1,16 +1,16 @@
-# ClipDown
+# ChanDown
 
 <p align="center">
-  <img src="public/ClipDownLogo.png" alt="ClipDown Logo" width="200"/>
+  <img src="public/ChanDownLogo.png" alt="ChanDown Logo" width="200"/>
 </p>
 
 <p align="left">
-  <a href="https://sourceforge.net/projects/clipdown/files/latest/download">
-    <img src="https://a.fsdn.com/con/app/sf-download-button" alt="Download clipdown">
+  <a href="https://sourceforge.net/projects/ChanDown/files/latest/download">
+    <img src="https://a.fsdn.com/con/app/sf-download-button" alt="Download ChanDown">
   </a>
 </p>
 <p align="left">
-  <a href="https://app.codacy.com/gh/raHULK777/clipdown/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade">
+  <a href="https://app.codacy.com/gh/raHULK777/ChanDown/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade">
     <img src="https://app.codacy.com/project/badge/Grade/42a2573a16994eb7a75490905e84f7c4" alt="Codacy Badge">
   </a>
 </p>
@@ -68,7 +68,7 @@ Download the standalone executable from the [Releases](https://github.com/YOUR_U
 app.exe
 ```
 
-Place it anywhere and run. The app stores its data (downloaded tools, settings) in `%LOCALAPPDATA%\com.clipdown.app\`.
+Place it anywhere and run. The app stores its data (downloaded tools, settings) in `%LOCALAPPDATA%\com.chandown.app\`.
 
 > **Note:** On first run, the app will prompt you to install yt-dlp and FFmpeg via the Settings page.
 
@@ -77,7 +77,7 @@ Place it anywhere and run. The app stores its data (downloaded tools, settings) 
 ## How to Use
 
 <p align="center">
-  <img src="ClipDown.png" alt="ClipDown App Screenshot" width="700"/>
+  <img src="ChanDown.png" alt="ChanDown App Screenshot" width="700"/>
 </p>
 
 ### 1. Fetch a Channel
@@ -167,8 +167,8 @@ The `.vsconfig` file in the repo root includes the required components — if yo
 
 ```bash
 # Clone
-git clone https://github.com/YOUR_USERNAME/clipdown.git
-cd clipdown
+git clone https://github.com/YOUR_USERNAME/ChanDown.git
+cd ChanDown
 
 # Install frontend dependencies
 pnpm install
@@ -181,8 +181,8 @@ pnpm tauri build
 ```
 
 The production build will be at:
-- Installer: `src-tauri/target/release/bundle/nsis/ClipDown_0.1.0_x64-setup.exe`
-- Standalone: `src-tauri/target/release/clipdown.exe`
+- Installer: `src-tauri/target/release/bundle/nsis/ChanDown_0.1.0_x64-setup.exe`
+- Standalone: `src-tauri/target/release/ChanDown.exe`
 
 ---
 
@@ -262,4 +262,4 @@ MIT
 
 ## Disclaimer
 
-ClipDown is an independent project and is **not affiliated with, authorized, maintained, sponsored, or endorsed by YouTube or Google**. Use in accordance with YouTube's Terms of Service.
+ChanDown is an independent project and is **not affiliated with, authorized, maintained, sponsored, or endorsed by YouTube or Google**. Use in accordance with YouTube's Terms of Service.

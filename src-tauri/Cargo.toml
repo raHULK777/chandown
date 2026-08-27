@@ -1,10 +1,10 @@
 [package]
-name = "clipdown"
+name = "chandown"
 version = "0.1.0"
 description = "Local-first YouTube downloader for clippers, researchers, and archivists"
-authors = ["clipdown contributors"]
+authors = ["chandown contributors"]
 license = "MIT"
-repository = "https://github.com/YOUR_USERNAME/clipdown"
+repository = "https://github.com/YOUR_USERNAME/chandown"
 edition = "2021"
 rust-version = "1.77.2"
 

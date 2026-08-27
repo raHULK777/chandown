@@ -3,6 +3,7 @@ mod models;
 mod process;
 mod queue;
 mod db;
+mod history;
 
 use commands::download::DownloadState;
 use commands::settings::SettingsState;
@@ -48,17 +49,21 @@ pub fn run() {
       commands::system::update_ytdlp,
       commands::system::get_ytdlp_version,
       commands::system::get_ffmpeg_version,
+      commands::system::check_for_ytdlp_update,
       commands::channel::fetch_channel_info,
       commands::channel::fetch_channel_videos,
       commands::channel::fetch_channel_playlists,
       commands::channel::fetch_video_info,
       commands::channel::fetch_playlist_videos,
+      commands::channel::estimate_video_size,
       commands::download::start_download,
       commands::download::cancel_download,
       commands::download::pause_download,
       commands::download::resume_download,
       commands::download::get_queue,
       commands::download::clear_queue,
+      commands::download::get_history,
+      commands::download::clear_history,
       commands::settings::get_settings,
       commands::settings::update_setting,
     ])

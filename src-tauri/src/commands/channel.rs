@@ -3,8 +3,16 @@ use crate::process::manager::ProcessManager;
 use crate::models::channel::*;
 use serde_json::Value;
 use std::path::PathBuf;
+use std::sync::{Arc, OnceLock};
 use tauri::AppHandle;
 use tauri::Manager;
+use tokio::sync::Semaphore;
+
+static ESTIMATE_SEM: OnceLock<Arc<Semaphore>> = OnceLock::new();
+
+fn get_estimate_sem() -> Arc<Semaphore> {
+    ESTIMATE_SEM.get_or_init(|| Arc::new(Semaphore::new(3))).clone()
+}
 
 fn get_bin_dir(app: &AppHandle) -> PathBuf {
     app.path()
@@ -290,6 +298,77 @@ pub async fn fetch_video_info(app: AppHandle, video_url: String) -> Result<Video
         formats,
         subtitles,
     })
+}
+
+#[tauri::command]
+pub async fn estimate_video_size(app: AppHandle, video_url: String, resolution: i64) -> Result<Option<i64>, String> {
+    let _permit = get_estimate_sem().acquire_owned().await
+        .map_err(|_| "Semaphore closed".to_string())?;
+
+    let args = vec![
+        "--dump-json".to_string(),
+        "--no-warnings".to_string(),
+        "--skip-download".to_string(),
+        video_url,
+    ];
+
+    let output = call_ytdlp(&app, &args)?;
+    let data: Value = serde_json::from_str(&output)
+        .map_err(|e| format!("Failed to parse video data: {}", e))?;
+
+    let duration = data.get("duration").and_then(|v| v.as_f64());
+    let formats: Vec<Value> = data.get("formats")
+        .and_then(|f| f.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    let video_formats: Vec<&Value> = formats.iter()
+        .filter(|f| f.get("height").and_then(|h| h.as_i64()).is_some())
+        .collect();
+
+    let audio_formats: Vec<&Value> = formats.iter()
+        .filter(|f| {
+            f.get("acodec").and_then(|v| v.as_str()).unwrap_or("none") != "none"
+                && f.get("vcodec").and_then(|v| v.as_str()).unwrap_or("none") == "none"
+        })
+        .collect();
+
+    let video_fmt = video_formats.iter()
+        .filter(|f| f.get("height").and_then(|h| h.as_i64()).unwrap_or(0) <= resolution)
+        .max_by_key(|f| f.get("height").and_then(|h| h.as_i64()).unwrap_or(0));
+
+    let audio_fmt = audio_formats.iter()
+        .max_by_key(|f| f.get("tbr").and_then(|t| t.as_f64()).unwrap_or(0.0) as i64);
+
+    let estimate = match (video_fmt, audio_fmt) {
+        (Some(vf), Some(af)) => {
+            let v_size = estimate_format_size(vf, duration);
+            let a_size = estimate_format_size(af, duration);
+            match (v_size, a_size) {
+                (Some(vs), Some(as_)) => Some(vs + as_),
+                _ => None,
+            }
+        }
+        (Some(vf), None) => estimate_format_size(vf, duration),
+        _ => None,
+    };
+
+    Ok(estimate)
+}
+
+fn estimate_format_size(format: &Value, duration: Option<f64>) -> Option<i64> {
+    if let Some(fs) = format.get("filesize").and_then(|v| v.as_i64()) {
+        if fs > 0 {
+            return Some(fs);
+        }
+    }
+    if let (Some(tbr), Some(dur)) = (
+        format.get("tbr").and_then(|v| v.as_f64()),
+        duration,
+    ) {
+        return Some((tbr * 1000.0 * dur / 8.0) as i64);
+    }
+    None
 }
 
 #[cfg(test)]

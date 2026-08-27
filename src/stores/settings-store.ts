@@ -33,7 +33,7 @@ export const useSettingsStore = create<SettingsStore>()(
       setCookiesFile: (path) => set({ cookiesFile: path }),
     }),
     {
-      name: "clipdown-settings",
+      name: "chandown-settings",
     }
   )
 )

@@ -38,8 +38,8 @@ function Sidebar({ className }: SidebarProps) {
       )}
     >
       <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4">
-        <img src="/ClipDownLogo.png" alt="ClipDown" className="h-6 w-6" />
-        <span className="text-sm font-semibold">ClipDown</span>
+        <img src="/ChanDownLogo.png" alt="ChanDown" className="h-6 w-6" />
+        <span className="text-sm font-semibold">ChanDown</span>
       </div>
 
       <nav className="flex-1 space-y-1 p-3">

@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useChannelStore } from "@/stores/channel-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { useTauriCommand } from "@/hooks/use-tauri-command"
+import { formatBytes } from "@/utils"
 import { FolderOpen, Loader2 } from "lucide-react"
 
 interface DownloadDialogProps {
@@ -29,6 +30,12 @@ function DownloadDialog({ onClose }: DownloadDialogProps) {
   const [downloading, setDownloading] = useState(false)
   const [resolving, setResolving] = useState(true)
   const [resolvedItems, setResolvedItems] = useState<ResolvedItem[]>([])
+  const [selectedResolvedIds, setSelectedResolvedIds] = useState<Set<string>>(new Set())
+  const [playlistItems, setPlaylistItems] = useState<ResolvedItem[]>([])
+  const [directItems, setDirectItems] = useState<ResolvedItem[]>([])
+  const [estimatedSizes, setEstimatedSizes] = useState<Map<string, number | null>>(new Map())
+  const [estimating, setEstimating] = useState(false)
+  const estimationGen = useRef(0)
 
   useEffect(() => {
     ;(async () => {
@@ -45,7 +52,8 @@ function DownloadDialog({ onClose }: DownloadDialogProps) {
   useEffect(() => {
     ;(async () => {
       setResolving(true)
-      const items: ResolvedItem[] = []
+      const plItems: ResolvedItem[] = []
+      const dirItems: ResolvedItem[] = []
 
       const videoIds = new Set(store.selectedIds)
       const playlistMap = new Map(store.playlists.filter(p => videoIds.has(p.id)).map(p => [p.id, p]))
@@ -55,31 +63,95 @@ function DownloadDialog({ onClose }: DownloadDialogProps) {
         try {
           const videos = await invoke<{ id: string; url: string; title: string }[]>("fetch_playlist_videos", { playlistUrl: pl.url })
           for (const v of videos) {
-            items.push({ id: v.id, url: v.url, title: v.title, subfolder: pl.title })
+            plItems.push({ id: v.id, url: v.url, title: v.title, subfolder: pl.title })
           }
         } catch { /* skip if fetch fails */ }
       }
 
       for (const v of store.videos) {
         if (videoIds.has(v.id)) {
-          items.push({ id: v.id, url: v.url, title: v.title, subfolder: null })
+          dirItems.push({ id: v.id, url: v.url, title: v.title, subfolder: null })
         }
       }
       for (const v of store.shorts) {
         if (videoIds.has(v.id)) {
-          items.push({ id: v.id, url: v.url, title: v.title, subfolder: null })
+          dirItems.push({ id: v.id, url: v.url, title: v.title, subfolder: null })
         }
       }
       for (const v of store.streams) {
         if (videoIds.has(v.id)) {
-          items.push({ id: v.id, url: v.url, title: v.title, subfolder: null })
+          dirItems.push({ id: v.id, url: v.url, title: v.title, subfolder: null })
         }
       }
 
-      setResolvedItems(items)
+      const allItems = [...dirItems, ...plItems]
+      setPlaylistItems(plItems)
+      setDirectItems(dirItems)
+      setResolvedItems(allItems)
+      setSelectedResolvedIds(new Set(allItems.map(i => i.id)))
       setResolving(false)
     })()
   }, [store.selectedIds, store.playlists, store.videos, store.shorts, store.streams])
+
+  useEffect(() => {
+    if (resolving || resolvedItems.length === 0) return
+
+    const gen = ++estimationGen.current
+    setEstimating(true)
+    setEstimatedSizes(new Map())
+
+    const selectedItems = resolvedItems.filter(i => selectedResolvedIds.has(i.id))
+    if (selectedItems.length === 0) {
+      setEstimating(false)
+      return
+    }
+
+    const CONCURRENT = 3
+    let active = 0
+    let idx = 0
+    let done = false
+
+    const fetchNext = async () => {
+      while (idx < selectedItems.length && !done) {
+        if (active >= CONCURRENT) return
+        const item = selectedItems[idx++]
+        active++
+        try {
+          const res = await invoke<number | null>("estimate_video_size", {
+            videoUrl: item.url,
+            resolution: parseInt(quality),
+          })
+          if (done) return
+          setEstimatedSizes(prev => {
+            const next = new Map(prev)
+            next.set(item.id, res)
+            return next
+          })
+        } catch {
+          if (!done) {
+            setEstimatedSizes(prev => {
+              const next = new Map(prev)
+              next.set(item.id, null)
+              return next
+            })
+          }
+        } finally {
+          active--
+          if (!done) fetchNext()
+          else if (active === 0) setEstimating(false)
+        }
+      }
+      if (active === 0 && !done) setEstimating(false)
+    }
+
+    for (let i = 0; i < Math.min(CONCURRENT, selectedItems.length); i++) {
+      fetchNext()
+    }
+
+    return () => {
+      done = true
+    }
+  }, [resolving, resolvedItems, selectedResolvedIds, quality, format])
 
   const handleBrowse = async () => {
     try {
@@ -92,19 +164,21 @@ function DownloadDialog({ onClose }: DownloadDialogProps) {
   const handleDownload = async () => {
     setDownloading(true)
     try {
-      for (const item of resolvedItems) {
+      const toDownload = resolvedItems.filter(i => selectedResolvedIds.has(i.id))
+      for (const item of toDownload) {
         const path = item.subfolder ? `${outputPath}\\${sanitize(item.subfolder)}` : outputPath
         await invoke("start_download", {
           request: {
             url: item.url,
             title: item.title,
-            format_id: quality,
+            format_id: format === "audio" ? "bestaudio" : quality,
             output_path: path,
-            quality,
+            quality: format === "audio" ? audioQuality : quality,
             audio_only: format === "audio",
             audio_format: format === "audio" ? audioFormat : null,
             audio_quality: format === "audio" ? audioQuality : null,
             video_format: format === "video" ? videoContainer : null,
+            filesize: estimatedSizes.get(item.id) ?? null,
           },
         })
       }
@@ -123,7 +197,7 @@ function DownloadDialog({ onClose }: DownloadDialogProps) {
         <CardContent className="pt-6 space-y-5">
           <div>
             <h2 className="text-lg font-semibold">
-              {resolving ? "Preparing..." : `Download ${resolvedItems.length} items`}
+              {resolving ? "Preparing..." : `Download ${selectedResolvedIds.size} of ${resolvedItems.length} items`}
             </h2>
             <p className="text-sm text-muted-foreground">Select format and output options</p>
           </div>
@@ -231,6 +305,66 @@ function DownloadDialog({ onClose }: DownloadDialogProps) {
             </div>
           </div>
 
+          {!resolving && playlistItems.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Playlist Videos</label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => {
+                    const allIds = new Set(playlistItems.map(i => i.id))
+                    if (playlistItems.every(i => selectedResolvedIds.has(i.id))) {
+                      setSelectedResolvedIds(prev => {
+                        const next = new Set(prev)
+                        for (const id of allIds) next.delete(id)
+                        return next
+                      })
+                    } else {
+                      setSelectedResolvedIds(prev => new Set([...prev, ...allIds]))
+                    }
+                  }}
+                >
+                  {playlistItems.every(i => selectedResolvedIds.has(i.id)) ? "Deselect All" : "Select All"}
+                </Button>
+              </div>
+              <div className="max-h-48 overflow-y-auto rounded-md border divide-y">
+                {playlistItems.map((item) => (
+                  <label key={item.id} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300 text-primary shrink-0"
+                      checked={selectedResolvedIds.has(item.id)}
+                      onChange={() => {
+                        setSelectedResolvedIds(prev => {
+                          const next = new Set(prev)
+                          if (next.has(item.id)) next.delete(item.id)
+                          else next.add(item.id)
+                          return next
+                        })
+                      }}
+                    />
+                    <span className="truncate min-w-0 flex-1">{item.title}</span>
+                    {selectedResolvedIds.has(item.id) && (
+                      <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
+                        {estimatedSizes.has(item.id) ? (
+                          estimatedSizes.get(item.id) != null ? (
+                            formatBytes(estimatedSizes.get(item.id)!)
+                          ) : (
+                            <span className="text-destructive">N/A</span>
+                          )
+                        ) : estimating ? (
+                          <Loader2 className="h-3 w-3 animate-spin inline" />
+                        ) : null}
+                      </span>
+                    )}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
             {resolving ? (
               <div className="flex items-center gap-2">
@@ -238,7 +372,38 @@ function DownloadDialog({ onClose }: DownloadDialogProps) {
                 Resolving playlist contents...
               </div>
             ) : (
-              <span>{resolvedItems.length} item{resolvedItems.length !== 1 ? "s" : ""} will be downloaded</span>
+              <div className="space-y-1">
+                <span>
+                  {selectedResolvedIds.size} of {resolvedItems.length} item{resolvedItems.length !== 1 ? "s" : ""} selected for download
+                </span>
+                {!estimating && estimatedSizes.size > 0 && (() => {
+                  let total = 0
+                  let counted = 0
+                  for (const [id, size] of estimatedSizes) {
+                    if (selectedResolvedIds.has(id) && size != null) {
+                      total += size
+                      counted++
+                    }
+                  }
+                  if (counted > 0) {
+                    return (
+                      <span className="block text-xs">
+                        Estimated total: {formatBytes(total)}
+                        {counted < selectedResolvedIds.size && (
+                          <span className="text-muted-foreground/60"> ({counted}/{selectedResolvedIds.size} estimated)</span>
+                        )}
+                      </span>
+                    )
+                  }
+                  return null
+                })()}
+                {estimating && (
+                  <span className="block text-xs flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Estimating download sizes...
+                  </span>
+                )}
+              </div>
             )}
             {!resolving && resolvedItems.some(i => i.subfolder) && (
               <p className="text-xs mt-1 text-muted-foreground">
@@ -251,7 +416,7 @@ function DownloadDialog({ onClose }: DownloadDialogProps) {
             <Button variant="outline" onClick={onClose} disabled={downloading}>
               Cancel
             </Button>
-            <Button onClick={handleDownload} disabled={downloading || resolving || resolvedItems.length === 0}>
+            <Button onClick={handleDownload} disabled={downloading || resolving || selectedResolvedIds.size === 0}>
               {downloading ? "Starting..." : "Download Now"}
             </Button>
           </div>
