@@ -1,6 +1,6 @@
 [package]
 name = "chandown"
-version = "0.2.0"
+version = "0.2.1"
 description = "Local-first YouTube downloader for clippers, researchers, and archivists"
 authors = ["chandown contributors"]
 license = "MIT"
