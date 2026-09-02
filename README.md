@@ -181,7 +181,7 @@ pnpm tauri build
 ```
 
 The production build will be at:
-- Installer: `src-tauri/target/release/bundle/nsis/ChanDown_0.1.0_x64-setup.exe`
+- Installer: `src-tauri/target/release/bundle/nsis/ChanDown_0.2.0_x64-setup.exe`
 - Standalone: `src-tauri/target/release/ChanDown.exe`
 
 ---
